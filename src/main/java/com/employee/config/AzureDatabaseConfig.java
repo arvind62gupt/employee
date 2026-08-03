@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile; // 👈 Ensure this is imported
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import javax.sql.DataSource;
@@ -20,36 +21,37 @@ public class AzureDatabaseConfig {
 
     @Value("${azure.keyvault.url:}")
     private String keyVaultUrl;
+
     @Value("${azure.keyvault.secret.db-username:}")
     private String usernameSecretName;
+
     @Value("${azure.keyvault.secret.db-password:}")
     private String passwordSecretName;
+
     @Value("${spring.datasource.url}")
     private String dbUrl;
+
     @Value("${spring.datasource.driver-class-name}")
     private String driverClassName;
 
-
+    // 1. This bean only runs when the "test" profile is NOT active
     @Bean
+    @Profile("!test")
     public DataSource dataSource() {
         log.info("Initializing DataSource using Azure Key Vault secrets from: {}", keyVaultUrl);
 
         try {
-            // Instantiate Azure Credentials
             DefaultAzureCredential credential = new DefaultAzureCredentialBuilder().build();
 
-            // Build the Key Vault client
             SecretClient secretClient = new SecretClientBuilder()
                     .vaultUrl(keyVaultUrl)
                     .credential(credential)
                     .buildClient();
 
-            // Fetch credentials securely at startup
             log.info("Fetching database credentials from Key Vault...");
             String dbUsername = secretClient.getSecret(usernameSecretName).getValue();
             String dbPassword = secretClient.getSecret(passwordSecretName).getValue();
 
-            // Create and populate the DataSource object
             DriverManagerDataSource dataSource = new DriverManagerDataSource();
             dataSource.setDriverClassName(driverClassName);
             dataSource.setUrl(dbUrl);
@@ -64,5 +66,17 @@ public class AzureDatabaseConfig {
             throw new IllegalStateException("Failed to initialize database connection via Key Vault", e);
         }
     }
-}
 
+    // 2. This bean ONLY runs during tests, completely removing Azure dependencies
+    @Bean
+    @Profile("test")
+    public DataSource testDataSource() {
+        log.info("Test profile active: Initializing local in-memory H2 DataSource.");
+        DriverManagerDataSource dataSource = new DriverManagerDataSource();
+        dataSource.setDriverClassName(driverClassName);
+        dataSource.setUrl(dbUrl);
+        dataSource.setUsername("sa");
+        dataSource.setPassword("");
+        return dataSource;
+    }
+}
