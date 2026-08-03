@@ -1,4 +1,4 @@
-package com.employee.controller;
+package com.employee.controllers;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
