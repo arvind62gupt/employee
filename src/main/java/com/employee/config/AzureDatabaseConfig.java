@@ -18,20 +18,17 @@ public class AzureDatabaseConfig {
 
     private static final Logger log = LoggerFactory.getLogger(AzureDatabaseConfig.class);
 
-    @Value("${azure.keyvault.url}")
+    @Value("${azure.keyvault.url:}")
     private String keyVaultUrl;
-
-    @Value("${azure.keyvault.secret.db-username}")
+    @Value("${azure.keyvault.secret.db-username:}")
     private String usernameSecretName;
-
-    @Value("${azure.keyvault.secret.db-password}")
+    @Value("${azure.keyvault.secret.db-password:}")
     private String passwordSecretName;
-
     @Value("${spring.datasource.url}")
     private String dbUrl;
-
     @Value("${spring.datasource.driver-class-name}")
     private String driverClassName;
+
 
     @Bean
     public DataSource dataSource() {
