@@ -121,6 +121,36 @@
 				<artifactId>azure-webapp-maven-plugin</artifactId>
 				<version>2.13.0</version>
 			</plugin>
+			<!-- Replace your current azure-webapp-maven-plugin block with this -->
+			<plugin>
+				<groupId>com.microsoft.azure</groupId>
+				<artifactId>azure-webapp-maven-plugin</artifactId>
+				<version>2.13.0</version>
+				<configuration>
+					<!-- Replace these placeholders with your actual Azure Web App details -->
+					<schemaVersion>v2</schemaVersion>
+					<resourceGroup>RG1</resourceGroup>
+					<appName>emp-webapp1</appName>
+					<pricingTier>P1v2</pricingTier> <!-- Update to your app tier (e.g., B1, F1, P1v2) -->
+					<region>eastus</region> <!-- Update to your Azure region -->
+					<runtime>
+<!--						<os>Linux</os>-->
+						<javaVersion>Java 21</javaVersion>
+						<webContainer>Java SE</webContainer>
+					</runtime>
+					<deployment>
+						<resources>
+							<resource>
+								<directory>${project.basedir}/target</directory>
+								<includes>
+									<include>*.jar</include>
+								</includes>
+							</resource>
+						</resources>
+					</deployment>
+				</configuration>
+			</plugin>
+
 		</plugins>
 	</build>
 
