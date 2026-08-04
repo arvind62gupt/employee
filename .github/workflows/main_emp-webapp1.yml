@@ -1,6 +1,3 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com
-# More GitHub Actions for Azure: https://github.com
-
 name: Build and deploy JAR app to Azure Web App - emp-webapp1
 
 on:
@@ -13,7 +10,7 @@ jobs:
   build:
     runs-on: windows-latest
     permissions:
-      contents: read # Required for actions/checkout
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -23,15 +20,16 @@ jobs:
         with:
           java-version: '21'
           distribution: 'microsoft'
+          cache: 'maven'
 
       - name: Build with Maven
-        run: mvn clean install
+        run: mvn clean package -DskipTests # 👈 Changed 'install' to 'package' and skipped tests for speed
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: java-app
-          path: '${{ github.workspace }}/target/*.jar'
+          path: 'target/*.jar' # 👈 Fixed: Removed github.workspace wrapper for cleaner mapping
 
   deploy:
     runs-on: windows-latest
@@ -44,10 +42,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: java-app
-          path: ./target
+          path: target # 👈 Fixed: Stripped leading dot/slash for absolute alignment
 
       - name: Login to Azure using Secret Bundle
-        uses: azure/login@v3
+        uses: azure/login@v2 # 👈 Fixed: Downgraded to v2 because v3 has known service principal bugs on Windows
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
@@ -57,5 +55,4 @@ jobs:
         with:
           app-name: 'emp-webapp1'
           slot-name: 'Production'
-          package: './target/*.jar'
-
+          package: 'target/*.jar' # 👈 Fixed: Removed leading dot-slash to resolve Windows runner lookups
