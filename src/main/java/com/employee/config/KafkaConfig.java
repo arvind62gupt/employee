@@ -29,14 +29,16 @@ public class KafkaConfig {
     @Value("${azure.keyvault.url:}")
     private String keyVaultUrl;
 
-    @Value("${azure.keyvault.secret.kafka-password:eventhub-secret}")
+    // Inside com.employee.config.KafkaConfig.java
+
+    // Point explicitly to your dedicated producer jaas configuration token
+    @Value("${azure.keyvault.secret.kafka-producer-jaas:kafka-producer-jaas}")
     private String kafkaSecretName;
 
-    // 1. This Producer Factory only runs in non-test profiles using real Key Vault secrets
     @Bean
     @Profile("!test")
     public ProducerFactory<String, String> producerFactory() {
-        log.info("Initializing Production Kafka Producer Factory using Key Vault: {}", keyVaultUrl);
+        log.info("Initializing Production Kafka Producer Factory using direct producer jaas map profile");
 
         try {
             DefaultAzureCredential credential = new DefaultAzureCredentialBuilder().build();
@@ -45,8 +47,7 @@ public class KafkaConfig {
                     .credential(credential)
                     .buildClient();
 
-            log.info("Fetching Kafka connection string from Key Vault...");
-            String connectionString = secretClient.getSecret(kafkaSecretName).getValue();
+            String jaasConfig = secretClient.getSecret(kafkaSecretName).getValue();
 
             Map<String, Object> configProps = new HashMap<>();
             configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "employee-kafka-ns.servicebus.windows.net:9093");
@@ -55,13 +56,8 @@ public class KafkaConfig {
             configProps.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL");
             configProps.put(SaslConfigs.SASL_MECHANISM, "PLAIN");
 
-            // 🎯 THE FIX: String concatenation prevents internal Azure token characters like '%' from crashing the format parser.
-            // .trim() strips out any hidden trailing spaces or newline bugs.
-            String jaasConfig = "org.apache.kafka.common.security.plain.PlainLoginModule required "
-                    + "username=\"$ConnectionString\" "
-                    + "password=\"" + connectionString.trim() + "\";";
-
-            configProps.put(SaslConfigs.SASL_JAAS_CONFIG, jaasConfig);
+            // Inject the complete production string exactly as written in Azure
+            configProps.put(SaslConfigs.SASL_JAAS_CONFIG, jaasConfig.trim());
 
             return new DefaultKafkaProducerFactory<>(configProps);
         } catch (Exception e) {
@@ -70,7 +66,7 @@ public class KafkaConfig {
         }
     }
 
-    // 2. This Producer Factory only runs during unit/integration tests
+
     @Bean
     @Profile("test")
     public ProducerFactory<String, String> testProducerFactory() {
@@ -84,7 +80,6 @@ public class KafkaConfig {
 
     @Bean
     public KafkaTemplate<String, String> kafkaTemplate(ProducerFactory<String, String> producerFactory) {
-        log.info("Creating KafkaTemplate bean bound to active profile factory");
         return new KafkaTemplate<>(producerFactory);
     }
 }

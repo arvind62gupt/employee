@@ -31,14 +31,17 @@ public class KafkaConsumerConfig {
     @Value("${azure.keyvault.url:}")
     private String keyVaultUrl;
 
-    @Value("${azure.keyvault.secret.kafka-password:eventhub-secret}")
+    // 🎯 POINT TO NEW SECRET NAME
+    // Inside com.employee.config.KafkaConsumerConfig.java
+
+    // Point explicitly to your dedicated consumer jaas configuration token
+    @Value("${azure.keyvault.secret.kafka-consumer-jaas:kafka-consumer-jaas}")
     private String kafkaSecretName;
 
-    // 1. This Consumer Factory only runs in non-test profiles using real Key Vault secrets
     @Bean
     @Profile("!test")
     public ConsumerFactory<String, String> consumerFactory() {
-        log.info("Initializing Production Kafka Consumer Factory using Key Vault: {}", keyVaultUrl);
+        log.info("Initializing Production Kafka Consumer Factory using dedicated consumer jaas map profile");
 
         try {
             DefaultAzureCredential credential = new DefaultAzureCredentialBuilder().build();
@@ -47,8 +50,8 @@ public class KafkaConsumerConfig {
                     .credential(credential)
                     .buildClient();
 
-            log.info("Fetching Kafka connection string from Key Vault...");
-            String connectionString = secretClient.getSecret(kafkaSecretName).getValue();
+            // Fetches the string that already contains EntityPath format parameters safely embedded inside it
+            String jaasConfig = secretClient.getSecret(kafkaSecretName).getValue();
 
             Map<String, Object> props = new HashMap<>();
             props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "employee-kafka-ns.servicebus.windows.net:9093");
@@ -58,14 +61,8 @@ public class KafkaConsumerConfig {
             props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL");
             props.put(SaslConfigs.SASL_MECHANISM, "PLAIN");
 
-            // 🎯 THE FIX: String concatenation prevents internal Azure token characters like '%' from crashing the format parser.
-            // .trim() strips hidden newline anomalies, and EntityPath is correctly attached outside the core password block.
-            String jaasConfig = "org.apache.kafka.common.security.plain.PlainLoginModule required "
-                    + "username=\"$ConnectionString\" "
-                    + "password=\"" + connectionString.trim() + "\" "
-                    + "EntityPath=\"employee-events\";";
-
-            props.put(SaslConfigs.SASL_JAAS_CONFIG, jaasConfig);
+            // Inject cleanly with absolutely zero string replace manipulation operations
+            props.put(SaslConfigs.SASL_JAAS_CONFIG, jaasConfig.trim());
 
             return new DefaultKafkaConsumerFactory<>(props);
         } catch (Exception e) {
@@ -74,7 +71,7 @@ public class KafkaConsumerConfig {
         }
     }
 
-    // 2. This Consumer Factory only runs during unit/integration tests
+
     @Bean
     @Profile("test")
     public ConsumerFactory<String, String> testConsumerFactory() {
@@ -89,7 +86,6 @@ public class KafkaConsumerConfig {
 
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(ConsumerFactory<String, String> consumerFactory) {
-        log.info("Creating Kafka Listener Container Factory bound to active profile factory");
         ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
         return factory;
