@@ -32,7 +32,6 @@ public class DatabaseConfigController {
     public ResponseEntity<Map<String, Object>> checkConnection() {
         Map<String, Object> response = new HashMap<>();
 
-        // 🎯 TESTING ONLY: Extract and print username & password from the active DataSource
         if (dataSource instanceof DriverManagerDataSource) {
             DriverManagerDataSource dmDataSource = (DriverManagerDataSource) dataSource;
             log.info("=== DEBUG DATABASE CREDENTIALS ===");

@@ -7,6 +7,7 @@ import com.azure.security.keyvault.secrets.SecretClientBuilder;
 import com.azure.security.keyvault.secrets.models.KeyVaultSecret;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +20,10 @@ public class KeyVaultController {
 
     private static final Logger log = LoggerFactory.getLogger(KeyVaultController.class);
 
+    @Value("${azure.keyvault.url:}")
+    private String keyVaultUrl;
+    @Value("${azure.keyvault.secret.db-password:}")
+    private String passwordSecretName;
     /**
      * Endpoint to fetch the secret from Azure Key Vault.
      * URL: http://localhost:8080/api/secrets/db-password
@@ -26,8 +31,8 @@ public class KeyVaultController {
     @GetMapping("/db-password")
     public ResponseEntity<String> fetchSecretFromAzure() {
 
-        String keyVaultUrl = "https://empkey62vault.vault.azure.net/";
-        String secretName = "spring-datasource-password";//Postmaster@2026
+        //String keyVaultUrl = "https://empkey62vault.vault.azure.net/";
+       // String secretName = "spring-datasource-password";
 
         log.info("REST request received to fetch secret from Key Vault: {}", keyVaultUrl);
 
@@ -39,8 +44,8 @@ public class KeyVaultController {
                     .credential(credential)
                     .buildClient();
 
-            KeyVaultSecret secret = secretClient.getSecret(secretName);
-            log.info("Successfully retrieved secret metadata for: {}", secretName);
+            KeyVaultSecret secret = secretClient.getSecret(passwordSecretName);
+            log.info("Successfully retrieved secret metadata for: {}", passwordSecretName);
 
             return ResponseEntity.ok(secret.getValue());
 
