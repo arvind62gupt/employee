@@ -44,7 +44,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: java-app
-          path: ./deploy-target
+          path: ./target
 
       - name: Login to Azure using Secret Bundle
         uses: azure/login@v3
