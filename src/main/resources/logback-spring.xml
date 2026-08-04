@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- 1. Local Development Profile Configuration -->
+    <springProfile name="!prod">
+        <property name="LOG_DIR" value="C:/Users/azureuser/Documents/logs" />
+    </springProfile>
+
+    <!-- 2. Azure Production Windows Profile Configuration -->
+    <springProfile name="prod">
+        <!-- 🎯 THE FIX: Matches the exact Windows Mount path directory we set in the Azure Portal -->
+        <property name="LOG_DIR" value="C:/mounts/applogs" />
+    </springProfile>
+
+    <property name="LOG_FILE" value="employee-app" />
+
+    <!-- Console Appender (Keeps printing logs to IntelliJ terminal) -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern Kent="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %5level %logger{36} - %msg%n"></pattern>
+        </encoder>
+    </appender>
+
+    <!-- File Appender (Saves and rolls logs into your absolute folder path) -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/${LOG_FILE}.log</file>
+
+        <!-- Daily rolling policy with size constraint -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- Save old logs into an archive subfolder compressed as .gz -->
+            <fileNamePattern>${LOG_DIR}/archive/${LOG_FILE}-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <!-- Roll over when a single file hits 5MB -->
+            <maxFileSize>5MB</maxFileSize>
+            <!-- Keep 30 days worth of history -->
+            <maxHistory>30</maxHistory>
+            <!-- Total cap of all archive files combined -->
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Apply loggers to both Console and File systems -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE" />
+    </root>
+
+</configuration>
