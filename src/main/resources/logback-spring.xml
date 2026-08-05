@@ -2,14 +2,14 @@
 <configuration>
 
     <!-- 1. Local Development Profile Configuration -->
-    <springProfile name="!prod">
-        <property name="LOG_DIR" value="C:/Users/azureuser/Documents/logs" />
-    </springProfile>
+<!--    <springProfile name="!prod">-->
+<!--        <property name="LOG_DIR" value="C:/Users/azureuser/Documents/logs" />-->
+<!--    </springProfile>-->
 
     <!-- 2. Azure Production Windows Profile Configuration -->
-    <springProfile name="prod">
-        <property name="LOG_DIR" value="/mount/applogs" />
-    </springProfile>
+<!--    <springProfile name="prod">-->
+<!--        <property name="LOG_DIR" value="/mount/applogs" />-->
+<!--    </springProfile>-->
 
     <property name="LOG_FILE" value="employee-app" />
 
