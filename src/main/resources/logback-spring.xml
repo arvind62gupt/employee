@@ -1,53 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml" />
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml" />
 
-     1. Local Development Profile Configuration
-    <springProfile name="!prod">
-<!--        <property name="LOG_DIR" value="C:/Users/azureuser/Documents/logs" />-->
-                <property name="LOG_DIR" value="/mount/applogs" />
+    <!-- Reads values directly out of your application.properties file -->
+    <springProperty scope="context" name="AZURE_CONN_STR" source="azure.storage.connection-string"/>
+    <springProperty scope="context" name="AZURE_CONTAINER" source="azure.storage.container-name"/>
 
-    </springProfile>
-
-    <!-- 2. Azure Production Windows Profile Configuration -->
-<!--    <springProfile name="prod">-->
-<!--        <property name="LOG_DIR" value="/mount/applogs" />-->
-<!--    </springProfile>-->
-
-    <property name="LOG_FILE" value="employee-app" />
-
-    <!-- 1. Console Appender (Keeps printing logs to IntelliJ terminal) -->
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <!-- 🎯 FIXED: Cleaned attribute name to map natively to 'pattern' -->
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %5level %logger{36} - %msg%n</pattern>
-        </encoder>
+    <!-- Define our custom Azure Blob Appender -->
+    <appender name="AZURE_BLOB" class="com.employee.logging.AzureBlobAppender">
+        <connectionString>${AZURE_CONN_STR}</connectionString>
+        <containerName>${AZURE_CONTAINER}</containerName>
+        <blobPrefix>springboot-app-</blobPrefix>
     </appender>
 
-    <!-- 2. File Appender (Saves and rolls logs into your absolute folder path) -->
-    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_DIR}/${LOG_FILE}.log</file>
-
-        <!-- Daily rolling policy with size constraint -->
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <!-- Save old logs into an archive subfolder compressed as .gz -->
-            <fileNamePattern>${LOG_DIR}/archive/${LOG_FILE}-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
-            <!-- Roll over when a single file hits 5MB -->
-            <maxFileSize>5MB</maxFileSize>
-            <!-- Keep 30 days worth of history -->
-            <maxHistory>30</maxHistory>
-            <!-- Total cap of all archive files combined -->
-            <totalSizeCap>1GB</totalSizeCap>
-        </rollingPolicy>
-
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
-        </encoder>
+    <appender name="ASYNC_AZURE_BLOB" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="AZURE_BLOB" />
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
     </appender>
 
-    <!-- Apply loggers to both Console and File systems -->
     <root level="INFO">
         <appender-ref ref="CONSOLE" />
-        <appender-ref ref="FILE" />
+        <appender-ref ref="ASYNC_AZURE_BLOB" />
     </root>
-
 </configuration>
