@@ -8,20 +8,20 @@
 
     <!-- 2. Azure Production Windows Profile Configuration -->
     <springProfile name="prod">
-        <!-- 🎯 THE FIX: Matches the exact Windows Mount path directory we set in the Azure Portal -->
-        <property name="LOG_DIR" value="C:/mounts/applogs" />
+        <property name="LOG_DIR" value="/mount/applogs" />
     </springProfile>
 
     <property name="LOG_FILE" value="employee-app" />
 
-    <!-- Console Appender (Keeps printing logs to IntelliJ terminal) -->
+    <!-- 1. Console Appender (Keeps printing logs to IntelliJ terminal) -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern Kent="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %5level %logger{36} - %msg%n"></pattern>
+            <!-- 🎯 FIXED: Cleaned attribute name to map natively to 'pattern' -->
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
 
-    <!-- File Appender (Saves and rolls logs into your absolute folder path) -->
+    <!-- 2. File Appender (Saves and rolls logs into your absolute folder path) -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_DIR}/${LOG_FILE}.log</file>
 
