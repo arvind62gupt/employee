@@ -3,14 +3,8 @@
     <include resource="org/springframework/boot/logging/logback/defaults.xml" />
     <include resource="org/springframework/boot/logging/logback/console-appender.xml" />
 
-    <!-- Reads values directly out of your application.properties file -->
-    <springProperty scope="context" name="AZURE_CONN_STR" source="azure.storage.connection-string"/>
-    <springProperty scope="context" name="AZURE_CONTAINER" source="azure.storage.container-name"/>
-
-    <!-- Define our custom Azure Blob Appender -->
+    <!-- Define our clean programmatic Azure Blob Appender -->
     <appender name="AZURE_BLOB" class="com.employee.logging.AzureBlobAppender">
-        <connectionString>${AZURE_CONN_STR}</connectionString>
-        <containerName>${AZURE_CONTAINER}</containerName>
         <blobPrefix>springboot-app-</blobPrefix>
     </appender>
 

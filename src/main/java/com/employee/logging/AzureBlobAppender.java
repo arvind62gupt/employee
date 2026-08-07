@@ -7,7 +7,6 @@ import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.BlobServiceClientBuilder;
 import com.azure.storage.blob.specialized.AppendBlobClient;
-import org.springframework.beans.factory.annotation.Value;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
@@ -15,27 +14,32 @@ import java.time.LocalDate;
 
 public class AzureBlobAppender<E extends DeferredProcessingAware> extends AppenderBase<E> {
 
-    // Remove @Value annotations. Logback uses the setter methods instead.
-    @Value("${azure.storage.connection-string:}")
-    private String connectionString;
-    @Value("${azure.storage.container-name:}")
-    private String containerName;
-    private String blobPrefix = "log-";
+    private static String connectionString;
+    private static String containerName;
+    private String blobPrefix = "springboot-app-";
 
     private AppendBlobClient appendBlobClient;
     private LocalDate currentLogDate;
+    private boolean isInitialized = false;
+
+    /**
+     * Statically called by our new BlobStorageConfig class once Key Vault secrets arrive
+     */
+    public static void initializeWithProgrammaticSecrets(String connStr, String container) {
+        connectionString = connStr;
+        containerName = container;
+    }
 
     @Override
     public void start() {
-        // Check if the connection string is empty or contains the unparsed placeholder string
-        if (connectionString == null || connectionString.trim().isEmpty() ||
-                connectionString.contains("AZURE_STORAGE_CONNECTION_STRING") ||
-                containerName == null || containerName.trim().isEmpty()) {
+        super.start();
+    }
 
-            // Console fallback warning instead of a hard crash
-            addWarn("Azure Blob credentials not configured or invalid. Azure Logging is disabled.");
-            return; // Exits gracefully, letting the rest of Spring Boot boot normally
-        }
+    private synchronized boolean lazyInitializeAzureClient() {
+        if (isInitialized) return true;
+        // Wait until your BlobStorageConfig code injects the downloaded secrets
+        if (connectionString == null || containerName == null) return false;
+
         try {
             BlobServiceClient blobServiceClient = new BlobServiceClientBuilder()
                     .connectionString(connectionString)
@@ -47,16 +51,17 @@ public class AzureBlobAppender<E extends DeferredProcessingAware> extends Append
             }
 
             initializeBlobClient(containerClient);
-            super.start();
+            this.isInitialized = true;
+            return true;
         } catch (Exception e) {
-            addError("Failed to initialize Azure Blob Client", e);
+            addError("Failed to lazily establish Azure Blob Client using programmatic secrets", e);
+            return false;
         }
     }
 
-    private synchronized void initializeBlobClient(BlobContainerClient containerClient) {
+    private void initializeBlobClient(BlobContainerClient containerClient) {
         currentLogDate = LocalDate.now();
         String blobName = blobPrefix + currentLogDate + ".log";
-
         BlobClient blobClient = containerClient.getBlobClient(blobName);
         appendBlobClient = blobClient.getAppendBlobClient();
 
@@ -67,6 +72,10 @@ public class AzureBlobAppender<E extends DeferredProcessingAware> extends Append
 
     @Override
     protected void append(E event) {
+        if (!isInitialized && !lazyInitializeAzureClient()) {
+            return;
+        }
+
         try {
             if (!LocalDate.now().equals(currentLogDate)) {
                 BlobServiceClient serviceClient = new BlobServiceClientBuilder().connectionString(connectionString).buildClient();
@@ -75,11 +84,11 @@ public class AzureBlobAppender<E extends DeferredProcessingAware> extends Append
 
             String message = event.toString() + "\n";
             byte[] bytes = message.getBytes(StandardCharsets.UTF_8);
-
             appendBlobClient.appendBlock(new ByteArrayInputStream(bytes), bytes.length);
         } catch (Exception e) {
-            addError("Failed to append log to Azure Blob", e);
+            addError("Failed to append log line block to Azure Blob Container", e);
         }
     }
 
+    public void setBlobPrefix(String blobPrefix) { this.blobPrefix = blobPrefix; }
 }

@@ -1,7 +1,9 @@
 package com.employee.controllers;
 
+import com.azure.storage.blob.BlobServiceClient;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationContext; // Added import
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -12,13 +14,15 @@ import java.util.Map;
 @RestController
 public class LoggingController {
 
-    // Inject the raw connection string config value
-    @Value("${azure.storage.connection-string:MISSING}")
-    private String connectionString;
+    private final ApplicationContext context;
 
-    // Inject the container name config value
-    @Value("${azure.storage.container-name:MISSING}")
+    @Value("${azure.storage.container-name:emplogs}")
     private String containerName;
+
+    // Inject the lightweight ApplicationContext instead of the heavy Client bean
+    public LoggingController(ApplicationContext context) {
+        this.context = context;
+    }
 
     @GetMapping("/execute")
     public String doSomething() {
@@ -35,27 +39,22 @@ public class LoggingController {
         return "Process completed.";
     }
 
-    /**
-     * Diagnostic endpoint to verify if secrets are injecting correctly.
-     * Route: http://localhost:8080/debug-secrets
-     */
     @GetMapping("/debug-secrets")
     public Map<String, Object> debugSecrets() {
         Map<String, Object> status = new HashMap<>();
 
-        // 1. Check if the property is missing entirely
-        if ("MISSING".equals(connectionString)) {
-            status.put("connectionStringStatus", "ERROR: Property not found in application.properties or environment");
-        }
-        // 2. Check if it's pointing to an unparsed environment variable placeholder literal like ${AZURE_STORAGE_CONNECTION_STRING}
-        else if (connectionString.contains("AZURE_STORAGE_CONNECTION_STRING")) {
-            status.put("connectionStringStatus", "ERROR: Variable placeholder found but the actual OS environment variable is empty!");
-        }
-        // 3. Success (Mask the key for security so it doesn't print on your screen or logs)
-        else {
-            int maskLength = Math.min(25, connectionString.length());
-            status.put("connectionStringStatus", "SUCCESS (Loaded)");
-            status.put("connectionStringPreview", connectionString.substring(0, maskLength) + "...");
+        try {
+            // Lazily look up the bean ONLY when someone hits this endpoint URL
+            BlobServiceClient blobServiceClient = context.getBean(BlobServiceClient.class);
+
+            String accountUrl = blobServiceClient.getAccountUrl();
+            log.info("Programmatic Check Success: Connected out to Azure endpoint: {}", accountUrl);
+            status.put("connectionStatus", "SUCCESS (Connected to Azure via programmatic config)");
+            status.put("activeStorageEndpoint", accountUrl);
+
+        } catch (Exception e) {
+            log.error("Programmatic Check Failed: BlobServiceClient bean instantiation error!", e);
+            status.put("connectionStatus", "ERROR: Client bean was not found or failed initialization.");
         }
 
         status.put("containerName", containerName);
